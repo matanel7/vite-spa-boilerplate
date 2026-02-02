@@ -1,0 +1,4 @@
+:root{--bg:#0f172a;--fg:#e6eef8}
+html,body,#app{height:100%;margin:0}
+body{font-family:Inter, system-ui, sans-serif;background:var(--bg);color:var(--fg);display:flex;align-items:center;justify-content:center}
+main{max-width:56ch;padding:2rem;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)}
