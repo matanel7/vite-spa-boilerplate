@@ -271,10 +271,10 @@ function renderNav() {
 function renderHero() {
   return `
     <section class="hero">
+      <canvas id="particleCanvas" class="hero-particles"></canvas>
       <div class="hero-bg">
         <div class="hero-glow glow-1"></div>
         <div class="hero-glow glow-2"></div>
-        <div class="hero-grid-bg"></div>
       </div>
       <div class="container">
         <div class="hero-content">
@@ -604,3 +604,149 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
     }
   })
 })
+
+// ===== Particle Network Animation =====
+;(function () {
+  const canvas = document.getElementById('particleCanvas')
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+
+  const PARTICLE_COUNT = 80
+  const CONNECTION_DIST = 150
+  const MOUSE_RADIUS = 200
+  const particles = []
+  let mouse = { x: -9999, y: -9999 }
+  let animId
+
+  function resize() {
+    const hero = canvas.closest('.hero')
+    canvas.width = hero.offsetWidth
+    canvas.height = hero.offsetHeight
+  }
+
+  class Particle {
+    constructor() {
+      this.reset()
+    }
+
+    reset() {
+      this.x = Math.random() * canvas.width
+      this.y = Math.random() * canvas.height
+      this.vx = (Math.random() - 0.5) * 0.6
+      this.vy = (Math.random() - 0.5) * 0.6
+      this.radius = Math.random() * 2 + 1
+      this.opacity = Math.random() * 0.5 + 0.3
+    }
+
+    update() {
+      // Mouse attraction
+      const dx = mouse.x - this.x
+      const dy = mouse.y - this.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < MOUSE_RADIUS) {
+        const force = (MOUSE_RADIUS - dist) / MOUSE_RADIUS * 0.02
+        this.vx += dx * force
+        this.vy += dy * force
+      }
+
+      // Damping
+      this.vx *= 0.99
+      this.vy *= 0.99
+
+      this.x += this.vx
+      this.y += this.vy
+
+      // Wrap around edges
+      if (this.x < 0) this.x = canvas.width
+      if (this.x > canvas.width) this.x = 0
+      if (this.y < 0) this.y = canvas.height
+      if (this.y > canvas.height) this.y = 0
+    }
+
+    draw() {
+      ctx.beginPath()
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(41, 151, 255, ${this.opacity})`
+      ctx.fill()
+    }
+  }
+
+  function init() {
+    resize()
+    particles.length = 0
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push(new Particle())
+    }
+  }
+
+  function drawConnections() {
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x
+        const dy = particles[i].y - particles[j].y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+
+        if (dist < CONNECTION_DIST) {
+          const opacity = (1 - dist / CONNECTION_DIST) * 0.25
+          ctx.beginPath()
+          ctx.moveTo(particles[i].x, particles[i].y)
+          ctx.lineTo(particles[j].x, particles[j].y)
+          ctx.strokeStyle = `rgba(41, 151, 255, ${opacity})`
+          ctx.lineWidth = 0.8
+          ctx.stroke()
+        }
+      }
+    }
+
+    // Draw connections to mouse
+    for (const p of particles) {
+      const dx = mouse.x - p.x
+      const dy = mouse.y - p.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < MOUSE_RADIUS) {
+        const opacity = (1 - dist / MOUSE_RADIUS) * 0.4
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y)
+        ctx.lineTo(mouse.x, mouse.y)
+        ctx.strokeStyle = `rgba(191, 90, 242, ${opacity})`
+        ctx.lineWidth = 0.6
+        ctx.stroke()
+      }
+    }
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    for (const p of particles) {
+      p.update()
+      p.draw()
+    }
+
+    drawConnections()
+    animId = requestAnimationFrame(animate)
+  }
+
+  // Mouse tracking
+  const hero = canvas.closest('.hero')
+  hero.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect()
+    mouse.x = e.clientX - rect.left
+    mouse.y = e.clientY - rect.top
+  })
+
+  hero.addEventListener('mouseleave', () => {
+    mouse.x = -9999
+    mouse.y = -9999
+  })
+
+  window.addEventListener('resize', () => {
+    resize()
+    particles.forEach((p) => {
+      if (p.x > canvas.width || p.y > canvas.height) p.reset()
+    })
+  })
+
+  init()
+  animate()
+})()
